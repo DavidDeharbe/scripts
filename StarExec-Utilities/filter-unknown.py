@@ -2,9 +2,14 @@
 
 # filter_unknown.py
 #
-# a utility to process XML descriptions of Star-Exec spaces
+# A utility to process XML descriptions of Star-Exec spaces
 # reads a XML file from standard input and outputs a new XML file
-# without the benchmarks with status unknown removed.
+# without undesirable benchmarks 
+#
+# A benchmark is considered undesirable if:
+# - its id is listed in a file named "remove.txt" in the current directory
+# - the value of its 'status' attribute is 'unknown'
+# - the value of its 'contains-bv-partial-func' attribute is 'true'
 #
 # David Deharbe - Universidade Federal do Rio Grande do Norte (c) 2015
 
@@ -13,9 +18,12 @@ import os
 import sys
 import xml.etree.ElementTree as ET
 
-removed = 0
-kept = 0
-removable = []
+removed = 0 # how many benchmarks have been removed
+kept = 0    # how many benchmarks have been kept
+removable = [] # list of benchmarks id found in file 'remove.txt'
+# mapping of XML attribute pairs name-value characterizing benchmarks that
+# shall be removed
+filters = dict({'status': 'unknown', 'contains-bv-partial-func': 'true'})
 
 def remove_unknown_rec(node):
     global removed, kept, removable
@@ -24,14 +32,16 @@ def remove_unknown_rec(node):
 	if int(bench.attrib['id']) in removable:
 	    remove = True
 	else:
-            for attribute in bench.findall('Attribute'):
-                if attribute.attrib['name'] == 'status' and attribute.attrib['value'] == 'unknown':
+            for a in bench.findall('Attribute'):
+                name, value = a.attrib['name'], a.attrib['value']
+                if name in filters and filters[name] == value:
                     remove = True
         if remove:
             removed = removed + 1
             node.remove(bench)
-            sys.stderr.write(bench.attrib['name'] +'(' + bench.attrib['id'] + ') removed\n')
+            sys.stderr.write('removing,' + bench.attrib['name'] +',' + bench.attrib['id'] + '\n')
         else:
+            sys.stderr.write('keeping,' + bench.attrib['name'] +',' + bench.attrib['id'] + '\n')
             kept = kept + 1
     for child in node:
         remove_unknown_rec(child)
