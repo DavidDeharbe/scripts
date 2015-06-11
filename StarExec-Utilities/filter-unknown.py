@@ -21,21 +21,24 @@ import xml.etree.ElementTree as ET
 removed = 0 # how many benchmarks have been removed
 kept = 0    # how many benchmarks have been kept
 removable = [] # list of benchmarks id found in file 'remove.txt'
-# mapping of XML attribute pairs name-value characterizing benchmarks that
-# shall be removed
-filters = dict({'status': 'unknown', 'contains-bv-partial-func': 'true'})
 
 def remove_unknown_rec(node):
     global removed, kept, removable
     for bench in node.findall('Benchmark'):
-	remove = False
+        remove = False
 	if int(bench.attrib['id']) in removable:
 	    remove = True
 	else:
-            for a in bench.findall('Attribute'):
-                name, value = a.attrib['name'], a.attrib['value']
-                if name in filters and filters[name] == value:
-                    remove = True
+	    partial = False
+	    unknown = True
+	    for a in bench.findall('Attribute'):
+		n, v = a.attrib['name'], a.attrib['value']
+	        if n == 'contains-bv-partial-func' and v == 'true':
+		    partial = True
+		if n == 'status' and (v == 'sat' or v == 'unsat'):
+		    unknown = False
+            if partial or unknown:
+	        remove = True
         if remove:
             removed = removed + 1
             node.remove(bench)
@@ -45,7 +48,6 @@ def remove_unknown_rec(node):
             kept = kept + 1
     for child in node:
         remove_unknown_rec(child)
-
 
 def main():
     global removed, kept, removable
